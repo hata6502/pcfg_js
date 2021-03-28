@@ -70,7 +70,7 @@ S>名詞句 動詞 0.5999999999999994
 npm install pcfg
 ```
 
-参照：[src/ts/index.ts](https://github.com/hata6502/pcfg_js/blob/master/src/ts/index.ts)
+参照：[src/index.ts](https://github.com/hata6502/pcfg_js/blob/master/src/ts/index.ts)
 
 ## License
 
