@@ -1,11 +1,9 @@
 /**
  * Created by laco on 14/12/26.
  */
-///<reference path="../../typings/bundle.d.ts" />
 
-import kuromoji = require("kuromoji");
-import Token = kuromoji.Token;
-var DIC_DIR = "../../node_modules/kuromoji/dist/dict/";
+import {tokenize} from "kuromojin";
+import type {KuromojiToken} from "kuromojin";
 
 import Rule = require("./rule");
 import PcfgNode = require("./pcfg_node")
@@ -13,29 +11,37 @@ import RuleTree = require("./rule_tree_node")
 
 class Pcfg {
 
-  rules:Rule[];
-  nodeMap:PcfgNode[][];
-  ruleTreeMap:RuleTree.Node[][];
+  private rules:Rule[];
+  private nodeMap:PcfgNode[][];
+  private ruleTreeMap:RuleTree.Node[][];
 
-  static parse(text:string, rules:Rule[],
-               callback:(nodeTree:RuleTree.Node[][], tokens:Token[], newRules:Rule[])=>void):void {
-    var parser = new Pcfg();
-    var fn = function (tokens:Token[]) {
-      parser.rules = rules.concat();
-      var parsed = parser.calc(tokens);
-      if (parsed) {
-        parser.recalcProbability(tokens, parser.nodeMap);
-        callback(parser.ruleTreeMap, tokens, parser.rules);
-      } else {
-        callback(null, tokens, parser.rules);
-      }
-    };
-    parser.tokenize(text, fn);
+  static parse(text:string, rules:Rule[]):Promise<{nodeTree:RuleTree.Node[][] | null, tokens:KuromojiToken[], newRules:Rule[]}> {
+    return new Promise((resolve) => {
+      var parser = new Pcfg();
+      var fn = function (tokens:KuromojiToken[]) {
+        parser.rules = rules.concat();
+        var parsed = parser.calc(tokens);
+        if (parsed) {
+          parser.recalcProbability(tokens, parser.nodeMap);
+          resolve({
+            nodeTree: parser.ruleTreeMap,
+            tokens,
+            newRules: parser.rules
+          });
+        } else {
+          resolve({
+            nodeTree: null,
+            tokens,
+            newRules: parser.rules
+          });
+        }
+      };
+      parser.tokenize(text, fn);  
+    });
   }
 
-  tokenize(text:string, callback:(tokens:Token[])=>void):void {
-    kuromoji.builder({dicPath: DIC_DIR}).build(function (error, tokenizer) {
-      var parsed = tokenizer.tokenize(text);
+  private tokenize(text:string, callback:(tokens:KuromojiToken[])=>void):void {
+    tokenize(text).then((parsed) => {
       parsed.forEach((token, i)=> {
         console.log(token.surface_form + " " + Pcfg.getJoinedPos(token));
       });
@@ -45,16 +51,16 @@ class Pcfg {
       //parsed.push(<Token>{
       //  pos: "EOS"
       //});
-      callback(parsed);
+      callback(parsed);  
     });
   }
 
-  static getJoinedPos(token:Token):string {
+  private static getJoinedPos(token:KuromojiToken):string {
     return token.pos;
     //return [token.pos, token.pos_detail_1, token.pos_detail_2, token.pos_detail_3].join(",");
   }
 
-  calc(tokens:Token[]):boolean {
+  private calc(tokens:KuromojiToken[]):boolean {
     var N = tokens.length;
     this.nodeMap = new Array(N).map((v)=>new Array(N));
     this.ruleTreeMap = new Array(N).map((v)=>new Array(N));
@@ -161,7 +167,7 @@ class Pcfg {
     return true;
   }
 
-  recalcProbability(tokens:Token[], nodeMap:PcfgNode[][]) {
+  private recalcProbability(tokens:KuromojiToken[], nodeMap:PcfgNode[][]) {
     for (var i = 0; i < this.rules.length; i++) {
       var rule = this.rules[i];
       var newP = Pcfg.usedCount(tokens.length, rule, nodeMap) /
@@ -170,7 +176,7 @@ class Pcfg {
     }
   }
 
-  static usedCount(N:number, rule:Rule, nodeMap:PcfgNode[][]):number {
+  private static usedCount(N:number, rule:Rule, nodeMap:PcfgNode[][]):number {
     var count = 0;
     for (var n = 1; n < 1 + N - 1; n++) {
       for (var i = 0; i < N - n; i++) {
@@ -196,7 +202,7 @@ class Pcfg {
     return count <= 0 ? 0.000000000000001 : count;
   }
 
-  static toUniqueArray(array:Array<any>) {
+  private static toUniqueArray(array:Array<any>) {
     var a = [];
     for (var i = 0, l = array.length; i < l; i++)
       if (a.indexOf(array[i]) === -1)

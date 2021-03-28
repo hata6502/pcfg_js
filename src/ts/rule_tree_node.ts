@@ -1,7 +1,7 @@
 /**
  * Created by laco on 14/12/26.
  */
-import Rule = require("rule");
+import Rule = require("./rule");
 
 module RuleTree {
 

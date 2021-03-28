@@ -1,5 +1,8 @@
-import kuromoji = require("kuromoji");
-import Token = kuromoji.Token;
+#!/usr/bin/env node
+
+import fs from "fs";
+import type {KuromojiToken} from "kuromojin";
+
 import Pcfg = require("./pcfg");
 import Rule = require("./rule");
 import RuleTree = require("./rule_tree_node");
@@ -18,10 +21,11 @@ var rules:Rule[] = [
   "動詞>名詞 助動詞 0.5"
 ].map((expr)=>Rule.fromString(expr));
 
-var text = "隣の客はよく柿食う客だ";
-console.log("text=" + text);
-rules.forEach((v)=>console.log(v.toString(), v.probability));
-Pcfg.parse(text, rules, (nodeTree, tokens, newRules)=> {
+const main = async() => {
+  const text = fs.readFileSync(0, "utf-8");
+  console.log("text=" + text);
+  rules.forEach((v)=>console.log(v.toString(), v.probability));
+  const {nodeTree, tokens, newRules} = await Pcfg.parse(text, rules);
   console.log("### result ###");
   if (!nodeTree) {
     console.log("Cannot parse");
@@ -31,9 +35,9 @@ Pcfg.parse(text, rules, (nodeTree, tokens, newRules)=> {
     display(nodeTree, tokens, 0, N - 1, "S");
     newRules.forEach((v)=>console.log(v.toString(), v.probability));
   }
-});
+};
 
-function display(tree:RuleTree.Node[][], tokens:Token[], x:number, y:number, pos:string, depth = 0, leafCount = 0) {
+function display(tree:RuleTree.Node[][], tokens:KuromojiToken[], x:number, y:number, pos:string, depth = 0, leafCount = 0) {
   var top = tree[x][y];
   if (top === undefined) return leafCount;
   var result = "";
@@ -55,3 +59,5 @@ function display(tree:RuleTree.Node[][], tokens:Token[], x:number, y:number, pos
   }
   return leafCount;
 }
+
+main();
