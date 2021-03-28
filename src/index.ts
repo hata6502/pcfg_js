@@ -7,7 +7,7 @@ import Pcfg = require("./pcfg");
 import Rule = require("./rule");
 import RuleTree = require("./rule_tree_node");
 
-var rules:Rule[] = [
+const rules:Rule[] = [
   "S>名詞句 形容詞 0.5",
   "S>名詞句 名詞 0.3",
   "S>名詞句 動詞 0.2",
@@ -25,16 +25,21 @@ const main = async() => {
   const text = fs.readFileSync(0, "utf-8");
   console.log("text=" + text);
   rules.forEach((v)=>console.log(v.toString(), v.probability));
-  const {nodeTree, tokens, newRules} = await Pcfg.parse(text, rules);
+
+  const parseResults = await Pcfg.parse(text, rules);
+
   console.log("### result ###");
-  if (!nodeTree) {
-    console.log("Cannot parse");
-  }
-  else {
-    var N = nodeTree.length;
-    display(nodeTree, tokens, 0, N - 1, "S");
-    newRules.forEach((v)=>console.log(v.toString(), v.probability));
-  }
+
+  parseResults.forEach((parseResult) => {
+    const N = parseResult.nodeTree.length;
+
+    if (N === 0) {
+      return ;
+    }
+
+    display(parseResult.nodeTree, parseResult.tokens, 0, N - 1, "S");
+    parseResult.newRules.forEach((v)=>console.log(v.toString(), v.probability));
+  });
 };
 
 function display(tree:RuleTree.Node[][], tokens:KuromojiToken[], x:number, y:number, pos:string, depth = 0, leafCount = 0) {

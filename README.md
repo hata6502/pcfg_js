@@ -11,7 +11,7 @@ npm install -g pcfg
 ```
 
 ```bash
-$ echo -n "隣の客はよく柿食う客だ" | pcfg
+$ echo "隣の客はよく柿食う客だ" | pcfg
 text=隣の客はよく柿食う客だ
 S>名詞句 形容詞 0.5
 S>名詞句 名詞 0.3
@@ -78,6 +78,6 @@ MIT
 
 ## Disclaimer
 
-The following creations are included in this product:
+The following creation is the original version of this product:
 
 - [lacolaco/pcfg_js](https://github.com/lacolaco/pcfg_js#license)

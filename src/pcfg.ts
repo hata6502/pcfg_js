@@ -2,12 +2,20 @@
  * Created by laco on 14/12/26.
  */
 
+import toWideSign from 'jaco/fn/toWideSign';
 import {tokenize} from "kuromojin";
 import type {KuromojiToken} from "kuromojin";
+import {PCFGError} from "./pcfg_error";
 
 import Rule = require("./rule");
 import PcfgNode = require("./pcfg_node")
 import RuleTree = require("./rule_tree_node")
+
+interface ParseResult {
+  nodeTree:RuleTree.Node[][];
+  tokens:KuromojiToken[];
+  newRules:Rule[];
+}
 
 class Pcfg {
 
@@ -15,32 +23,42 @@ class Pcfg {
   private nodeMap:PcfgNode[][];
   private ruleTreeMap:RuleTree.Node[][];
 
-  static parse(text:string, rules:Rule[]):Promise<{nodeTree:RuleTree.Node[][] | null, tokens:KuromojiToken[], newRules:Rule[]}> {
+  static parse(text:string, rules:Rule[]):Promise<ParseResult[]> {
     return new Promise((resolve) => {
-      var parser = new Pcfg();
       var fn = function (tokens:KuromojiToken[]) {
-        parser.rules = rules.concat();
-        var parsed = parser.calc(tokens);
-        if (parsed) {
-          parser.recalcProbability(tokens, parser.nodeMap);
-          resolve({
+        const splittedTokensList = Pcfg.splitTokens(tokens);
+
+        const parseResults = splittedTokensList.map((splittedTokens) => {
+          const parser = new Pcfg({rules});
+          const parsed = parser.calc(splittedTokens);
+
+          if (!parsed) {
+            throw new PCFGError("Cannot parse");
+          }
+
+          parser.recalcProbability(splittedTokens, parser.nodeMap);
+
+          return {
             nodeTree: parser.ruleTreeMap,
-            tokens,
+            tokens: splittedTokens,
             newRules: parser.rules
-          });
-        } else {
-          resolve({
-            nodeTree: null,
-            tokens,
-            newRules: parser.rules
-          });
-        }
+          };
+        });
+
+        resolve(parseResults);
       };
-      parser.tokenize(text, fn);  
+
+      const normalizedText = Pcfg.normalize(text);
+
+      Pcfg.tokenize(normalizedText, fn);
     });
   }
 
-  private tokenize(text:string, callback:(tokens:KuromojiToken[])=>void):void {
+  private static normalize(text:string) {
+    return toWideSign(text);
+  }
+
+  private static tokenize(text:string, callback:(tokens:KuromojiToken[])=>void):void {
     tokenize(text).then((parsed) => {
       parsed.forEach((token, i)=> {
         console.log(token.surface_form + " " + Pcfg.getJoinedPos(token));
@@ -55,13 +73,45 @@ class Pcfg {
     });
   }
 
+  private static splitTokens(tokens:KuromojiToken[]) {
+    const splittedTokensList: KuromojiToken[][] = [];
+
+    let currentTokens: KuromojiToken[] = [];
+
+    tokens.forEach((token) => {
+      if (token.pos === '記号') {
+        splittedTokensList.push(currentTokens);
+        currentTokens = [];
+
+        return ;
+      }
+
+      currentTokens.push(token);
+    });
+
+    splittedTokensList.push(currentTokens);
+
+    return splittedTokensList;
+  }
+
   private static getJoinedPos(token:KuromojiToken):string {
     return token.pos;
     //return [token.pos, token.pos_detail_1, token.pos_detail_2, token.pos_detail_3].join(",");
   }
 
+  constructor({rules}: {rules:Rule[]}) {
+    this.rules = [...rules];
+    this.nodeMap = [];
+    this.ruleTreeMap = [];
+  }
+
   private calc(tokens:KuromojiToken[]):boolean {
-    var N = tokens.length;
+    const N = tokens.length;
+
+    if (N === 0) {
+      return true;
+    }
+
     this.nodeMap = new Array(N).map((v)=>new Array(N));
     this.ruleTreeMap = new Array(N).map((v)=>new Array(N));
     //内側初期化
@@ -212,3 +262,4 @@ class Pcfg {
 }
 
 export = Pcfg;
+export type {ParseResult};
